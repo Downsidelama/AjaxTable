@@ -15,7 +15,7 @@ try {
     //$stmt = $conn->prepare("INSERT INTO `test` (`name`, `data`) VALUES (:name, :data)");
 
     $sql = "INSERT INTO `test` (`name`, `data`) VALUES ('hello', 'world')";
-    for ($i = 0; $i < 1000; $i++) {
+    for ($i = 0; $i < 20; $i++) {
         //$stmt->execute(["name" => "Hello" . rand(1, 100), "data" => "World" . rand(1, 100)]);
         $sql .= ",('hello " . rand(1, 100) . "', 'world" . rand(1, 100) . "')";
     }

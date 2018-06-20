@@ -42,7 +42,7 @@ class Table {
         if (settings.hasOwnProperty("table")) {
             this.table = settings.table;
         } else {
-            error += "You need to specify which table you want to use this class with!";
+            error += "You need to specify which table you want to use this class with!\n\r";
             canStart = false;
         }
 
@@ -61,7 +61,7 @@ class Table {
         if (settings.hasOwnProperty("dataNames")) {
             this.dataNames = settings.dataNames;
         } else {
-            error += "You did not specify the column types!";
+            error += "You did not specify the column types!\n\r";
             canStart = false;
         }
 
@@ -77,14 +77,21 @@ class Table {
             this.searchBox = undefined;
         }
 
+        if(settings.hasOwnProperty("paginatorCallback")) {
+            this.paginatorCallback = settings.paginatorCallback;
+        } else {
+            this.paginatorCallback = undefined;
+        }
+
         this.searchString = "";
         this.audio = new Audio('../res/unsure.mp3');
         this.rows = [];
         this.ajaxLoop;
+        this.page = 1;
 
         if (canStart) {
             this.loopAjax();
-            this.getInitial(this.rows);
+            this.getInitial(this.paginatorCallback);
             if (this.searchBox !== undefined) {
                 this.searchListener();
             }
@@ -122,12 +129,12 @@ class Table {
         this.displayLoader();
         clearTimeout(this.ajaxLoop);
         $.ajax({
-            url: that.url + "?limit=" + that.rowLimit + "&search=" + that.searchString
+            url: that.url + "?limit=" + that.rowLimit + "&search=" + that.searchString + "&page=" + that.page
         }).done(function (msg) {
             that.removeAllRowsFromTable();
             that.ajaxSuccessFul(msg);
         }).fail(function (errorObject, status) {
-            alert(status);
+            that.displayError(status);
             that.removeLoader();
         });
         this.loopAjax();
@@ -140,23 +147,35 @@ class Table {
         $.ajax({
             url: this.url + "?newRow&limit=" + that.rowLimit + "&search=" + that.searchString
         }).done(function (msg) {
-            if (that.getSearchString() === "") {
-                that.ajaxSuccessFul(msg, true);
-            } else {
-                that.removeLoader();
-            }
-        }).fail(function (errorObject, status, errorMsg) {
-            alert(status);
+            that.ajaxSuccessFul(msg, true, true);
+        }).fail(function (errorObject, status) {
+            that.displayError(status);
             that.removeLoader();
         });
     }
 
-    ajaxSuccessFul(msg, allowSound = false) {
+    ajaxSuccessFul(msg, allowSound = false, newRow = false) {
         let data = $.parseJSON(msg);
+        let that = this;
+        if(!newRow) {
+            this.handleMessage(data, allowSound);
+        } else if (newRow && that.getSearchString() === "" && that.page === 1) {
+            this.handleMessage(data);
+        } else {
+            that.removeLoader();
+        }
+
+        if (data.data.length > 0 && allowSound === true) {
+            that.playSound();
+        }
+    }
+
+    handleMessage(data) {
+        let that = this;
         if (data.status === "OK") {
             this.pushToTable(data.data);
-            if (data.data.length > 0 && allowSound) {
-                this.playSound();
+            if(this.paginatorCallback !== undefined) {
+                this.paginatorCallback(data.currentPage, data.page);
             }
         } else {
             this.displayError(data.errorMsg);
@@ -233,7 +252,6 @@ class Table {
         let that = this;
         this.ajaxLoop = window.setInterval(function () {
             that.add();
-            console.log("10 sec refresh!");
         }, 10000);
     }
 
@@ -267,4 +285,11 @@ class Table {
             $(checkbox).parent().parent().removeClass(highlightClass);
         }
     }
+
+    setPage(page) {
+        console.log("Setting page to " + page);
+        this.page = page;
+        this.getInitial();
+    }
+
 }
